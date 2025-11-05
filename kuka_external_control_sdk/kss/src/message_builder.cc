@@ -67,7 +67,7 @@ void MotionState::CreateFromXML(const char *incoming_xml) {
   }
   next_value_idx += kAttributeSuffix.length();
 
-  // Parse external axes (E1-E6)
+  // Parse external axes (E1-EN)
   if (external_dof_ > 0) {
     next_value_idx += kExternalPositionsPrefix.length() - 1;
 
@@ -172,7 +172,7 @@ ControlSignal::CreateXMLString(int last_ipoc, bool stop_control) {
   }
   AppendToXMLString(kAttributeSuffix);
 
-  // Write external axes (E1-E6)
+  // Write external axes (E1-EN)
   if (external_dof_ > 0) {
     AppendToXMLString(kExternalPositionsPrefix);
     for (int i = 0; i < external_dof_; ++i) {
