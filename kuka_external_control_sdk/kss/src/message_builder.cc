@@ -67,18 +67,23 @@ void MotionState::CreateFromXML(const char *incoming_xml) {
   }
   next_value_idx += kAttributeSuffix.length();
 
-  // Parse external axes (E1-EN)
+  // Parse external axes (E1-E6)
   if (external_dof_ > 0) {
     next_value_idx += kExternalPositionsPrefix.length() - 1;
 
-    for (int i = 0; i < external_dof_; ++i) {
+    // All 6 external axes are present in the XML even if not all are used
+    for (int i = 0; i < 6; ++i) {
       std::size_t dbl_length = 0;
       next_value_idx += std::floor(std::log10(i + 1.0)); // length of extra digits
       next_value_idx += 6; // length of prefix + 1, e.g. " E1=\""
 
       if (next_value_idx < len) {
-        measured_positions_[robot_dof_ + i] =
-            std::stod(&incoming_xml[next_value_idx], &dbl_length) * (M_PI / 180);
+        // Assume that the external axes are linear instead of rotational
+        const double pos_mm =
+            std::stod(&incoming_xml[next_value_idx], &dbl_length);
+        if (i < external_dof_) {
+          measured_positions_[robot_dof_ + i] = pos_mm * 0.001;
+        }
       } else {
         throw std::invalid_argument(
             "Received XML is not valid for the given degree of freedom");
@@ -178,9 +183,11 @@ ControlSignal::CreateXMLString(int last_ipoc, bool stop_control) {
     for (int i = 0; i < external_dof_; ++i) {
       char double_buffer[kPrecision + 3 + 1 + 1 + 1];
       AppendToXMLString(external_position_attribute_prefixes_[i]);
+      // Assume that the external axes are linear instead of rotational
       int ret = std::snprintf(
           double_buffer, sizeof(double_buffer), kDoubleAttributeFormat.data(),
-          (joint_position_values_[robot_dof_ + i] - initial_positions_[robot_dof_ + i]) * (180 / M_PI));
+          (joint_position_values_[robot_dof_ + i] - initial_positions_[robot_dof_ + i]) *
+              1000.0);
       if (ret <= 0) {
         return std::nullopt;
       }
