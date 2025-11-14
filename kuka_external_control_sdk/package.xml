@@ -16,6 +16,7 @@
   <depend>libgrpc</depend>
   <depend>libssl-dev</depend>
   <depend>pkg-config</depend>
+  <depend>protobuf-dev</depend>
   <depend>protobuf-compiler-grpc</depend>
   <depend>tinyxml2_vendor</depend>
 
