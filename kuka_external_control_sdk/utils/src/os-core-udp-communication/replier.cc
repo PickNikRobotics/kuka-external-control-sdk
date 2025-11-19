@@ -55,12 +55,8 @@ Replier::ErrorCode Replier::ReceiveRequestOrTimeout(std::chrono::microseconds re
     return Replier::ErrorCode::kError;
   }
   int recv_bytes = 0;
-  if (recv_timeout.count() == 0) {
-    recv_bytes = socket_.ReceiveFrom(last_remote_address_, server_buffer_, kMaxBufferSize);
-  } else {
     recv_bytes = socket_.ReceiveFromOrTimeout(recv_timeout, last_remote_address_, server_buffer_,
                                               kMaxBufferSize);
-  }
 
   if (recv_bytes >= 0) {
     last_request_size_ = recv_bytes;
