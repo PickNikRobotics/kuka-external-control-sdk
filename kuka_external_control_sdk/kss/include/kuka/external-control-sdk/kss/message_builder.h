@@ -37,6 +37,10 @@ public:
     measured_cartesian_positions_.resize(
         6, std::numeric_limits<double>::quiet_NaN());
 
+    // Calculate robot and external axis counts
+    robot_dof_ = std::min(dof_, static_cast<std::size_t>(6));
+    external_dof_ = (dof_ > 6) ? std::min(dof_ - 6, static_cast<std::size_t>(6)) : 0;
+
     first_cartesian_position_index_ += kMessagePrefix.length();
     first_cartesian_position_index_ += kCartesianPositionsPrefix.length() - 1;
 
@@ -62,7 +66,8 @@ private:
       " X=\"", " Y=\"", " Z=\"", " A=\"", " B=\"", " C=\""};
   const std::string kAttributeSuffix = "\"/>";
 
-  const std::string kJointPositionsPrefix = "<AIPos";
+  const std::string kRobotPositionsPrefix = "<AIPos";
+  const std::string kExternalPositionsPrefix = "<EIPos";
 
   const std::string kDelayNodePrefix = "<Delay D=\"";
   const std::string kGpioPrefix = "<GPIO";
@@ -77,6 +82,9 @@ private:
   long ipoc_ = 0;
   long delay_ = 0;
 
+  std::size_t robot_dof_;
+  std::size_t external_dof_;
+
   static constexpr int kPrecision = 6;
 };
 
@@ -89,6 +97,10 @@ public:
     initial_positions_.resize(dof, 0.0);
     cartesian_position_values_.resize(6, 0.0);
 
+    // Calculate robot and external axis counts
+    robot_dof_ = std::min(dof_, static_cast<std::size_t>(6));
+    external_dof_ = (dof_ > 6) ? std::min(dof_ - 6, static_cast<std::size_t>(6)) : 0;
+
     for (const auto &config : gpio_config_list) {
       gpio_values_.push_back(
           std::move(std::make_unique<kuka::external::control::kss::GPIOValue>(
@@ -96,9 +108,16 @@ public:
       gpioAttributePrefix.push_back(" " + config.name + "=\"");
     }
 
-    for (int i = 1; i <= dof; ++i) {
-      joint_position_attribute_prefixes_.push_back(" A" + std::to_string(i) +
+    // Build attribute prefixes for robot axes (A1-A6)
+    for (int i = 1; i <= robot_dof_; ++i) {
+      robot_position_attribute_prefixes_.push_back(" A" + std::to_string(i) +
                                                    "=\"");
+    }
+
+    // Build attribute prefixes for external axes (E1-EN)
+    for (int i = 1; i <= external_dof_; ++i) {
+      external_position_attribute_prefixes_.push_back(" E" + std::to_string(i) +
+                                                      "=\"");
     }
   }
   ControlSignal(const ControlSignal &other) = default;
@@ -116,8 +135,10 @@ private:
   void AppendToXMLString(std::string_view str);
 
   const std::string kMessagePrefix = "<Sen Type=\"KROSHU\">";
-  const std::string kJointPositionsPrefix = "<AK";
-  std::vector<std::string> joint_position_attribute_prefixes_;
+  const std::string kRobotPositionsPrefix = "<AK";
+  const std::string kExternalPositionsPrefix = "<EK";
+  std::vector<std::string> robot_position_attribute_prefixes_;
+  std::vector<std::string> external_position_attribute_prefixes_;
   const std::string kDoubleAttributeFormat =
       "%." + std::to_string(kPrecision) + "f";
   const std::string kAttributeSuffix = "/>";
@@ -132,6 +153,9 @@ private:
 
   bool has_initial_positions_ = false;
   std::vector<double> initial_positions_;
+
+  std::size_t robot_dof_;
+  std::size_t external_dof_;
 
   static constexpr int kPrecision = 6;
   static constexpr int kBufferSize = 1024;

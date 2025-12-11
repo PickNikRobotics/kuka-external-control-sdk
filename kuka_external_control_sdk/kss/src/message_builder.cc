@@ -47,9 +47,10 @@ void MotionState::CreateFromXML(const char *incoming_xml) {
 
   next_value_idx += kAttributeSuffix.length();
   // this -1 is to account for that there is no " before the fist attribute
-  next_value_idx += kJointPositionsPrefix.length() - 1;
+  next_value_idx += kRobotPositionsPrefix.length() - 1;
 
-  for (int i = 0; i < dof_; ++i) {
+  // Parse robot axes (A1-A6)
+  for (int i = 0; i < robot_dof_; ++i) {
     std::size_t dbl_length = 0;
     next_value_idx += std::floor(std::log10(
         i + 1.0));       // length of extra digits, e.g. for more than 10 dofs
@@ -65,6 +66,33 @@ void MotionState::CreateFromXML(const char *incoming_xml) {
     next_value_idx += dbl_length; // length of the parsed double
   }
   next_value_idx += kAttributeSuffix.length();
+
+  // Parse external axes (E1-E6)
+  if (external_dof_ > 0) {
+    next_value_idx += kExternalPositionsPrefix.length() - 1;
+
+    // All 6 external axes are present in the XML even if not all are used
+    for (int i = 0; i < 6; ++i) {
+      std::size_t dbl_length = 0;
+      next_value_idx += std::floor(std::log10(i + 1.0)); // length of extra digits
+      next_value_idx += 6; // length of prefix + 1, e.g. " E1=\""
+
+      if (next_value_idx < len) {
+        // Assume that the external axes are linear instead of rotational
+        const double pos_mm =
+            std::stod(&incoming_xml[next_value_idx], &dbl_length);
+        if (i < external_dof_) {
+          measured_positions_[robot_dof_ + i] = pos_mm * 0.001;
+        }
+      } else {
+        throw std::invalid_argument(
+            "Received XML is not valid for the given degree of freedom");
+      }
+      next_value_idx += dbl_length; // length of the parsed double
+    }
+    next_value_idx += kAttributeSuffix.length();
+  }
+
   next_value_idx += kDelayNodePrefix.length();
 
   if (next_value_idx >= len) {
@@ -130,11 +158,13 @@ ControlSignal::CreateXMLString(int last_ipoc, bool stop_control) {
   std::memset(xml_string_, 0, sizeof(xml_string_));
 
   AppendToXMLString(kMessagePrefix);
-  AppendToXMLString(kJointPositionsPrefix);
-  for (int i = 0; i < dof_; ++i) {
+
+  // Write robot axes (A1-A6)
+  AppendToXMLString(kRobotPositionsPrefix);
+  for (int i = 0; i < robot_dof_; ++i) {
     char double_buffer[kPrecision + 3 + 1 + 1 +
                        1]; // Precision + Digits + Comma + Null + Minus sign
-    AppendToXMLString(joint_position_attribute_prefixes_[i]);
+    AppendToXMLString(robot_position_attribute_prefixes_[i]);
     int ret = std::snprintf(
         double_buffer, sizeof(double_buffer), kDoubleAttributeFormat.data(),
         (joint_position_values_[i] - initial_positions_[i]) * (180 / M_PI));
@@ -145,8 +175,29 @@ ControlSignal::CreateXMLString(int last_ipoc, bool stop_control) {
     AppendToXMLString(double_buffer);
     AppendToXMLString("\"");
   }
-
   AppendToXMLString(kAttributeSuffix);
+
+  // Write external axes (E1-EN)
+  if (external_dof_ > 0) {
+    AppendToXMLString(kExternalPositionsPrefix);
+    for (int i = 0; i < external_dof_; ++i) {
+      char double_buffer[kPrecision + 3 + 1 + 1 + 1];
+      AppendToXMLString(external_position_attribute_prefixes_[i]);
+      // Assume that the external axes are linear instead of rotational
+      int ret = std::snprintf(
+          double_buffer, sizeof(double_buffer), kDoubleAttributeFormat.data(),
+          (joint_position_values_[robot_dof_ + i] - initial_positions_[robot_dof_ + i]) *
+              1000.0);
+      if (ret <= 0) {
+        return std::nullopt;
+      }
+
+      AppendToXMLString(double_buffer);
+      AppendToXMLString("\"");
+    }
+    AppendToXMLString(kAttributeSuffix);
+  }
+
   AppendToXMLString(kStopNodePrefix);
   AppendToXMLString(stop_control ? "1" : "0");
   AppendToXMLString(kStopNodeSuffix);
