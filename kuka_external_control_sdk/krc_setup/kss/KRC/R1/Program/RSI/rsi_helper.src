@@ -86,6 +86,37 @@ GLOBAL DEF ROS_SetAxisCorrLimits(cont_id: IN)
     ret = RSI_SetPublicPar(cont_id, AXISCORRMON_NAME[], "MaxA6", Max(ABS(val1), ABS(val2)))
 END
 
+GLOBAL DEF ROS_SetAxisCorrExtLimits(cont_id: IN)
+    INT cont_id
+    INT ret
+    REAL val1
+    REAL val2
+
+    ; Only applies when an external axis is configured; no-op on plain 6-axis
+    ; robots. Assumes the external-axis RSI context (one that contains an
+    ; AxisCorrExt_1 object, e.g. rsi_ext_joint_pos) is the context loaded by
+    ; RSI_CREATE.
+    IF $EX_AX_NUM < 1 THEN
+        RETURN
+    ENDIF
+
+    ;========================================
+    ; Set AxisCorrExt parameters (external axis E1 == $SOFT*_END index 7)
+    ;========================================
+    ; Same relative formulation as ROS_SetAxisCorrLimits: correction band =
+    ; soft-limit minus current measured position, so the axis gets its full
+    ; travel range regardless of where it sits at RSI startup.
+    ret = RSI_SetPublicPar(cont_id, AXISCORREXT_NAME[], "LowerLimE1", $SOFTN_END[7] - $AXIS_ACT_MEAS.E1)
+    ret = RSI_SetPublicPar(cont_id, AXISCORREXT_NAME[], "UpperLimE1", $SOFTP_END[7] - $AXIS_ACT_MEAS.E1)
+
+    ;========================================
+    ; Mirror into AxisCorrMon (E1)
+    ;========================================
+    ret = RSI_GetPublicPar(cont_id, AXISCORREXT_NAME[], "LowerLimE1", val1)
+    ret = RSI_GetPublicPar(cont_id, AXISCORREXT_NAME[], "UpperLimE1", val2)
+    ret = RSI_SetPublicPar(cont_id, AXISCORRMON_NAME[], "MaxE1", Max(ABS(val1), ABS(val2)))
+END
+
 DEFFCT REAL Max(r1: IN, r2: IN)
     REAL r1
     REAL r2

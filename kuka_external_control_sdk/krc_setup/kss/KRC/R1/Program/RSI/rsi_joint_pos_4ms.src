@@ -49,6 +49,10 @@ DEF rsi_joint_pos_4ms()
     ; Set AxisCorr parameters to allow full range of motion
     ROS_SetAxisCorrLimits(cont_id)
 
+    ; Set AxisCorrExt parameters for the external axis (rail), relative to its
+    ; startup position. No-op when no external axis is configured.
+    ROS_SetAxisCorrExtLimits(cont_id)
+
     ; Start RSI execution
     ret = RSI_ON(#ABSOLUTE, #IPO_FAST)
     IF (ret <> RSIOK) THEN
